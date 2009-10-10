@@ -1,5 +1,7 @@
 '$Id$
 
+Imports Inventor
+
 Public Class myPlotter
     Private _UpdatePlotstyles As Boolean = False
     Private _AllColorsAsBlack As Boolean = False
@@ -315,7 +317,121 @@ Public Class myPlotter
         Finally
             oPS = Nothing
         End Try
+
     End Function
+#Region "TranslatorFunctions"
+
+
+    ''' <summary>
+    ''' Use the Inventor translator Add-In to generate a PDF without any further tools
+    ''' 
+    ''' http://modthemachine.typepad.com/my_weblog/2009/01/translating-files-with-the-api.html
+    ''' </summary>
+    ''' <param name="ThisApplication">Inventor Application object; a Drawing must be the current Document!</param>
+    ''' <param name="OutFile">FullName with complete Path for PDF-File</param>
+    ''' <remarks></remarks>
+    Shared Sub SaveAsPDF(ByVal ThisApplication As Inventor.Application, ByVal OutFile As String, Optional ByVal AllColorASBlack As Boolean = True)
+        ' Get the PDF translator Add-In. 
+        Dim oPDFTrans As TranslatorAddIn
+        oPDFTrans = ThisApplication.ApplicationAddIns.ItemById( _
+                                "{0AC6FD96-2F4D-42CE-8BE0-8AEA580399E4}")
+        If oPDFTrans Is Nothing Then
+            MsgBox("Could not access PDF translator.")
+            Exit Sub
+        End If
+
+        ' Create some objects that are used to pass information to  the translator Add-In.  
+        Dim oContext As TranslationContext
+        oContext = ThisApplication.TransientObjects.CreateTranslationContext
+        Dim oOptions As NameValueMap
+        oOptions = ThisApplication.TransientObjects.CreateNameValueMap
+        If oPDFTrans.HasSaveCopyAsOptions(ThisApplication.ActiveDocument, _
+                                                  oContext, oOptions) Then
+            ' Set to print all sheets.  This can also have the value 
+            ' kPrintCurrentSheet or kPrintSheetRange. If kPrintSheetRange 
+            ' is used then you must also use the CustomBeginSheet and 
+            ' Custom_End_Sheet to define the sheet range. 
+            oOptions.Value("Sheet_Range") = Inventor.PrintRangeEnum.kPrintAllSheets
+
+            ' Other possible options... 
+            'oOptions.Value("Custom_Begin_Sheet") = 1 
+            'oOptions.Value("Custom_End_Sheet") = 5 
+            oOptions.Value("All_Color_AS_Black") = True
+            'oOptions.Value("Remove_Line_Weights") = True 
+            'oOptions.Value("Vector_Resolution") = 200
+
+            ' Define various settings and input to provide the translator. 
+            oContext.Type = Inventor.IOMechanismEnum.kFileBrowseIOMechanism
+            Dim oData As DataMedium
+            oData = ThisApplication.TransientObjects.CreateDataMedium
+            oData.FileName = OutFile
+
+            ' Call the translator. 
+            Call oPDFTrans.SaveCopyAs(ThisApplication.ActiveDocument, _
+                                              oContext, oOptions, oData)
+        End If
+    End Sub
+    ''' <summary>
+    ''' Save File as DWF
+    ''' 
+    ''' Autodesk: Discussion Groups - Publish DWF without partlists and/or revision table
+    ''' 
+    ''' http://discussion.autodesk.com/forums/message.jspa?messageID=6183760
+    ''' </summary>
+    ''' <param name="ThisApplication"></param>
+    ''' <param name="OutFile">FileName</param>
+    ''' <param name="Launch_Viewer">Start DWF View after saving</param>
+    ''' <param name="Publish_3D_Models"></param>
+    ''' <param name="Publish_All_Sheets"></param>
+    ''' <param name="Publish_Mode"></param>
+    ''' <param name="Enable_Printing"></param>
+    ''' <remarks></remarks>
+    Shared Sub SaveAsDWF(ByVal ThisApplication As Inventor.Application, ByVal OutFile As String, Optional ByVal Launch_Viewer As Boolean = False, Optional ByVal Publish_3D_Models As Boolean = False, Optional ByVal Publish_All_Sheets As Boolean = True, Optional ByVal Publish_Mode As Inventor.DWFPublishModeEnum = Inventor.DWFPublishModeEnum.kCustomDWFPublish, Optional ByVal Enable_Printing As Boolean = True)
+
+        ' Get the DWF translator Add-In.
+        Dim DWFAddIn As TranslatorAddIn
+        DWFAddIn = ThisApplication.ApplicationAddIns.ItemById("{0AC6FD95-2F4D-42CE-8BE0-8AEA580399E4}")
+
+        ' Set a reference to the active document (the document to be published).
+        Dim oDocument As Document
+        oDocument = ThisApplication.ActiveDocument
+
+        Dim oContext As TranslationContext
+        oContext = ThisApplication.TransientObjects.CreateTranslationContext
+        oContext.Type = Inventor.IOMechanismEnum.kFileBrowseIOMechanism
+
+        ' Create a NameValueMap object
+        Dim oOptions As NameValueMap
+        oOptions = ThisApplication.TransientObjects.CreateNameValueMap
+
+        ' Create a DataMedium object
+        Dim oDataMedium As DataMedium
+        oDataMedium = ThisApplication.TransientObjects.CreateDataMedium
+
+        ' Check whether the translator has 'SaveCopyAs' options
+        If DWFAddIn.HasSaveCopyAsOptions(oDataMedium, oContext, oOptions) Then
+
+            oOptions.Value("Launch_Viewer") = Launch_Viewer
+            oOptions.Value("Enable_Printing") = Enable_Printing
+
+            If TypeOf oDocument Is DrawingDocument Then
+
+                ' Drawing options
+                oOptions.Value("Publish_Mode") = Publish_Mode
+                oOptions.Value("Publish_All_Sheets") = Publish_All_Sheets
+                oOptions.Value("Publish_3D_Models") = Publish_3D_Models
+
+            End If
+
+        End If
+
+        oDataMedium.FileName = OutFile
+
+        'Publish document.
+        Call DWFAddIn.SaveCopyAs(oDocument, oContext, oOptions, oDataMedium)
+
+    End Sub
+#End Region
 #Region "IPropertiesHelperFunctions"
     Private Function chkPropInt(ByVal PropName As String, ByVal oUserPropertySet As PropertySet) As Integer
         For i As Integer = 1 To oUserPropertySet.Count
