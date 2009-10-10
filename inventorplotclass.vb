@@ -1,11 +1,9 @@
 '$Id$
 
-Imports Inventor
-
 Public Class myPlotter
     Private _UpdatePlotstyles As Boolean = False
     Private _AllColorsAsBlack As Boolean = False
-    Private _UpdateIFeatures As Boolean = False
+    Private _UpdateIProperties As Boolean = False
     Private _SetSystemPrinter As String = ""
     Private _FixedPaperSize As PaperSizeEnum = Nothing
     Public RotatePlot As New sRotatePlot
@@ -62,55 +60,97 @@ Public Class myPlotter
     End Class
 #End Region
 #Region "Properties"
+    ''' <summary>
+    ''' Check if (Plot)Styles different from StylesManager and Update (default=false)
+    ''' </summary>
+    ''' <value></value>
+    ''' <remarks></remarks>
     Public WriteOnly Property UpdatePlotstyles() As Boolean
         Set(ByVal value As Boolean)
             _UpdatePlotstyles = value
         End Set
     End Property
+    ''' <summary>
+    ''' Plot in back and white (default=false)
+    ''' </summary>
+    ''' <value></value>
+    ''' <remarks></remarks>
     Public WriteOnly Property AllColorsAsBlack() As Boolean
         Set(ByVal value As Boolean)
             _AllColorsAsBlack = value
         End Set
     End Property
-    Public WriteOnly Property UpdateIFeatures() As Boolean
+    ''' <summary>
+    ''' Set plotuser and plotdate (default=false)
+    ''' </summary>
+    ''' <value></value>
+    ''' <remarks></remarks>
+    Public WriteOnly Property UpdateIProperties() As Boolean
         Set(ByVal value As Boolean)
-            _UpdateIFeatures = value
+            _UpdateIProperties = value
         End Set
     End Property
+    ''' <summary>
+    ''' Force plotting on definied Papersize (default=auto)
+    ''' </summary>
+    ''' <value></value>
+    ''' <remarks></remarks>
     Public WriteOnly Property FixedPaperSize() As PaperSizeEnum
         Set(ByVal value As PaperSizeEnum)
             _FixedPaperSize = value
         End Set
     End Property
+    ''' <summary>
+    ''' Set Printer/Plotter to print on
+    ''' </summary>
+    ''' <value></value>
+    ''' <remarks></remarks>
     Public WriteOnly Property SetSystemPrinter() As String
         Set(ByVal value As String)
             _SetSystemPrinter = value
         End Set
     End Property
+    ''' <summary>
+    ''' Numbers of Copies to plot
+    ''' </summary>
+    ''' <value></value>
+    ''' <remarks></remarks>
     Public WriteOnly Property NumberOfCopies() As Integer
         Set(ByVal value As Integer)
             _NumberOfCopies = value
         End Set
     End Property
+    ''' <summary>
+    ''' Scalemode for plotting (default=bestfit)
+    ''' </summary>
+    ''' <value></value>
+    ''' <remarks></remarks>
     Public WriteOnly Property PrintScaleMode() As PrintScaleModeEnum
         Set(ByVal value As PrintScaleModeEnum)
             _PrintScaleMode = value
         End Set
     End Property
-    'Public Property SetRotatePlot1() As RotatePlot
-    '    Get
-    '        Return _SetRotatePlot
-    '    End Get
-    '    Set(ByVal value As RotatePlot)
-    '        _SetRotatePlot = value
-    '    End Set
-    'End Property
 #End Region
+    Structure strings
+        Dim [empty] As String
+        Shared PrinterNotFound As String = "Unknown Printer"
+        Shared NoIDW As String = "No IDW-File"
+        Shared ErrorPageOrientation As String = "Page orientation unknown"
+        Shared ErrorPaperSize As String = "Papersize unknown"
+    End Structure
+    ''' <summary>
+    ''' 
+    ''' </summary>
+    ''' <param name="ActiveDocument">should be m_inventorApplication.ActiveDocument</param>
+    ''' <remarks></remarks>
     Public Sub New(ByVal ActiveDocument As Inventor.Document)
         _ActiveDocument = ActiveDocument
     End Sub
-    Sub UpdateStile()
-        'Dim oDrgPrintMgr As PrintManager = oDrgDoc.PrintManager
+    ''' <summary>
+    ''' Force an update on StylesManger->Drawing
+    ''' </summary>
+    ''' <remarks></remarks>
+    Sub UpdateStyles()
         Dim inv_document As ApprenticeServerDocument = _ActiveDocument
 
         Dim oDrgDoc As DrawingDocument = inv_document
@@ -123,13 +163,20 @@ Public Class myPlotter
         Next
 
     End Sub
+    ''' <summary>
+    ''' Force update/rebuild of Drawing; need after some changes
+    ''' </summary>
+    ''' <remarks></remarks>
     Sub UpdateDocument()
         _ActiveDocument.Update()
     End Sub
+    ''' <summary>
+    ''' Force generating or updating the IProperties: plotuser, plotdate
+    ''' </summary>
+    ''' <remarks></remarks>
     Sub GenerateIProperties()
         Dim inv_document As ApprenticeServerDocument = _ActiveDocument
         Dim oDrgDoc As DrawingDocument = inv_document
-        ' Dim oPropSets As PropertySets = oDrgDoc.PropertySets
 
         For Each opropset As PropertySet In oDrgDoc.PropertySets
             If opropset.Name = "Inventor User Defined Properties" Then
@@ -140,13 +187,16 @@ Public Class myPlotter
             End If
         Next opropset
     End Sub
+    ''' <summary>
+    ''' OK all done, plotting...
+    ''' </summary>
+    ''' <remarks></remarks>
     Sub plot()
         Try
-
             If _SetSystemPrinter.ToLower = "defaultprinter" Then _SetSystemPrinter = DefaultPrinterName()
 
             If SystemPrinterContains(_SetSystemPrinter) = False Then
-                MsgBox("Der Drucker '" & _SetSystemPrinter & "' wurde nicht gefunden", MsgBoxStyle.Critical)
+                MsgBox(myPlotter.strings.PrinterNotFound & _SetSystemPrinter, MsgBoxStyle.Critical)
                 Exit Sub
             End If
 
@@ -154,25 +204,22 @@ Public Class myPlotter
                 Dim inv_document As ApprenticeServerDocument = _ActiveDocument
 
                 Dim oDrgDoc As DrawingDocument = inv_document
-                If _UpdateIFeatures = True Then Me.GenerateIProperties()
-                If _UpdatePlotstyles = True Then Me.UpdateStile()
-                If _UpdateIFeatures = True Or _UpdatePlotstyles = True Then Me.UpdateDocument()
+                If _UpdateIProperties = True Then Me.GenerateIProperties()
+                If _UpdatePlotstyles = True Then Me.UpdateStyles()
+                If _UpdateIProperties = True Or _UpdatePlotstyles = True Then Me.UpdateDocument()
 
                 Try
-
-
                     If Me._FixedPaperSize > 0 Then
                         Me.PlotDin()
                     Else
                         Me.plotBestFit()
                     End If
                 Catch ex As Exception
-                    'lager.DebugLog(ex.Message)
                     MsgBox(ex.Message)
                 End Try
 
             Else
-                MsgBox("keine IDW-Zeichnung")
+                MsgBox(myPlotter.strings.NoIDW)
             End If
         Catch ex As Exception
             MsgBox(ex.Message)
@@ -186,8 +233,8 @@ Public Class myPlotter
             Case PageOrientationTypeEnum.kPortraitPageOrientation
                 oDrgPrintMgr.Orientation = PrintOrientationEnum.kPortraitOrientation
                 'MsgBox("Hochformat")
-            Case Else    ' Andere Werte.
-                MsgBox("ungültige Seiten-Orientierung", MsgBoxStyle.Critical)
+            Case Else    ' other values.
+                MsgBox(myPlotter.strings.ErrorPageOrientation, MsgBoxStyle.Critical)
                 Exit Sub
         End Select
     End Sub
@@ -225,7 +272,7 @@ Public Class myPlotter
                 oDrgPrintMgr.PaperSize = PaperSizeEnum.kPaperSizeA0
                 If Me.RotatePlot.A0 = True Then oDrgPrintMgr.Rotate90Degrees = True
             Case Else    ' Andere Werte.
-                MsgBox("ungültiges Papierformat", MsgBoxStyle.Critical)
+                MsgBox(myPlotter.strings.ErrorPaperSize, MsgBoxStyle.Critical)
                 Exit Sub
         End Select
 
@@ -258,7 +305,7 @@ Public Class myPlotter
         Next
         Return False
     End Function
-    Public Shared Function DefaultPrinterName() As String
+    Private Function DefaultPrinterName() As String
         Dim oPS As New System.Drawing.Printing.PrinterSettings
 
         Try
