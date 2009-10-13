@@ -1,8 +1,13 @@
 '$Id$
 
 Imports Inventor
-
-Public Class myPlotter
+''' <summary>
+''' This class do some plotting stuff for Autodesk Inventor
+''' 
+''' Daniel Espendiler - http://www.espend.de
+''' </summary>
+''' <remarks></remarks>
+Public Class InventorPlotClass
     Private _UpdatePlotstyles As Boolean = False
     Private _AllColorsAsBlack As Boolean = False
     Private _UpdateIProperties As Boolean = False
@@ -13,6 +18,10 @@ Public Class myPlotter
     Private _PrintScaleMode As PrintScaleModeEnum = PrintScaleModeEnum.kPrintBestFitScale
     Private _ActiveDocument As Inventor.Document
 #Region "sRotatePlot"
+    ''' <summary>
+    ''' Helperclass to change paper rotation
+    ''' </summary>
+    ''' <remarks></remarks>
     Public Class sRotatePlot
         Private _A0 As Boolean = False
         Private _A1 As Boolean = False
@@ -166,7 +175,7 @@ Public Class myPlotter
 
     End Sub
     ''' <summary>
-    ''' Force update/rebuild of Drawing; need after some changes
+    ''' Force update/rebuild of Drawing; need after some actions
     ''' </summary>
     ''' <remarks></remarks>
     Sub UpdateDocument()
@@ -198,7 +207,7 @@ Public Class myPlotter
             If _SetSystemPrinter.ToLower = "defaultprinter" Then _SetSystemPrinter = DefaultPrinterName()
 
             If SystemPrinterContains(_SetSystemPrinter) = False Then
-                MsgBox(myPlotter.strings.PrinterNotFound & _SetSystemPrinter, MsgBoxStyle.Critical)
+                MsgBox(InventorPlotClass.strings.PrinterNotFound & _SetSystemPrinter, MsgBoxStyle.Critical)
                 Exit Sub
             End If
 
@@ -221,12 +230,18 @@ Public Class myPlotter
                 End Try
 
             Else
-                MsgBox(myPlotter.strings.NoIDW)
+                MsgBox(InventorPlotClass.strings.NoIDW)
             End If
         Catch ex As Exception
             MsgBox(ex.Message)
         End Try
     End Sub
+    ''' <summary>
+    ''' set automatic landscape or portrait orientation or a sheet
+    ''' </summary>
+    ''' <param name="tt"></param>
+    ''' <param name="oDrgPrintMgr"></param>
+    ''' <remarks></remarks>
     Private Sub setOrientation(ByVal tt As Sheet, ByVal oDrgPrintMgr As PrintManager)
         Select Case tt.Orientation
             Case PageOrientationTypeEnum.kLandscapePageOrientation
@@ -236,10 +251,14 @@ Public Class myPlotter
                 oDrgPrintMgr.Orientation = PrintOrientationEnum.kPortraitOrientation
                 'MsgBox("Hochformat")
             Case Else    ' other values.
-                MsgBox(myPlotter.strings.ErrorPageOrientation, MsgBoxStyle.Critical)
+                MsgBox(InventorPlotClass.strings.ErrorPageOrientation, MsgBoxStyle.Critical)
                 Exit Sub
         End Select
     End Sub
+    ''' <summary>
+    ''' automatic get correct paper size and plot
+    ''' </summary>
+    ''' <remarks></remarks>
     Private Sub plotBestFit()
 
         Dim inv_document As ApprenticeServerDocument = _ActiveDocument
@@ -274,13 +293,17 @@ Public Class myPlotter
                 oDrgPrintMgr.PaperSize = PaperSizeEnum.kPaperSizeA0
                 If Me.RotatePlot.A0 = True Then oDrgPrintMgr.Rotate90Degrees = True
             Case Else    ' Andere Werte.
-                MsgBox(myPlotter.strings.ErrorPaperSize, MsgBoxStyle.Critical)
+                MsgBox(InventorPlotClass.strings.ErrorPaperSize, MsgBoxStyle.Critical)
                 Exit Sub
         End Select
 
         Plotting(oDrgPrintMgr)
 
     End Sub
+    ''' <summary>
+    ''' plot on an a fixed paper size
+    ''' </summary>
+    ''' <remarks></remarks>
     Private Sub PlotDin()
         Dim oDrgDoc As DrawingDocument = _ActiveDocument
         Dim tt As Sheet = oDrgDoc.ActiveSheet
@@ -301,12 +324,23 @@ Public Class myPlotter
         oDrgPrintMgr.ScaleMode = _PrintScaleMode
         oDrgPrintMgr.SubmitPrint()
     End Sub
+    ''' <summary>
+    ''' checks if a printer exists
+    ''' </summary>
+    ''' <param name="drucker">printer name</param>
+    ''' <returns>boolen</returns>
+    ''' <remarks></remarks>
     Private Function SystemPrinterContains(ByVal drucker As String) As Boolean
         For i As Integer = 0 To System.Drawing.Printing.PrinterSettings.InstalledPrinters.Count - 1
             If System.Drawing.Printing.PrinterSettings.InstalledPrinters.Item(i).ToLower = drucker.ToLower Then Return True
         Next
         Return False
     End Function
+    ''' <summary>
+    ''' get the default printer name
+    ''' </summary>
+    ''' <returns></returns>
+    ''' <remarks></remarks>
     Private Function DefaultPrinterName() As String
         Dim oPS As New System.Drawing.Printing.PrinterSettings
 
@@ -320,11 +354,10 @@ Public Class myPlotter
 
     End Function
 #Region "TranslatorFunctions"
-
-
     ''' <summary>
     ''' Use the Inventor translator Add-In to generate a PDF without any further tools
     ''' 
+    ''' Translating Files with the API
     ''' http://modthemachine.typepad.com/my_weblog/2009/01/translating-files-with-the-api.html
     ''' </summary>
     ''' <param name="ThisApplication">Inventor Application object; a Drawing must be the current Document!</param>
@@ -375,7 +408,6 @@ Public Class myPlotter
     ''' Save File as DWF
     ''' 
     ''' Autodesk: Discussion Groups - Publish DWF without partlists and/or revision table
-    ''' 
     ''' http://discussion.autodesk.com/forums/message.jspa?messageID=6183760
     ''' </summary>
     ''' <param name="ThisApplication"></param>
@@ -391,6 +423,11 @@ Public Class myPlotter
         ' Get the DWF translator Add-In.
         Dim DWFAddIn As TranslatorAddIn
         DWFAddIn = ThisApplication.ApplicationAddIns.ItemById("{0AC6FD95-2F4D-42CE-8BE0-8AEA580399E4}")
+
+        If DWFAddIn Is Nothing Then
+            MsgBox("Could not access DWF translator.")
+            Exit Sub
+        End If
 
         ' Set a reference to the active document (the document to be published).
         Dim oDocument As Document
@@ -433,12 +470,26 @@ Public Class myPlotter
     End Sub
 #End Region
 #Region "IPropertiesHelperFunctions"
+    ''' <summary>
+    ''' get the integer name of an iProperty name
+    ''' </summary>
+    ''' <param name="PropName"></param>
+    ''' <param name="oUserPropertySet"></param>
+    ''' <returns></returns>
+    ''' <remarks></remarks>
     Private Function chkPropInt(ByVal PropName As String, ByVal oUserPropertySet As PropertySet) As Integer
         For i As Integer = 1 To oUserPropertySet.Count
             If oUserPropertySet.Item(i).Name = PropName Then Return i
         Next i
         Return -1
     End Function
+    ''' <summary>
+    ''' add a new iProperty item or change the current value
+    ''' </summary>
+    ''' <param name="PropName"></param>
+    ''' <param name="value"></param>
+    ''' <param name="oUserPropertySet"></param>
+    ''' <remarks></remarks>
     Private Sub ChangeOrAddProperty(ByVal PropName As String, ByVal value As Object, ByVal oUserPropertySet As PropertySet)
         If Me.chkProp(PropName, oUserPropertySet) = True Then
             oUserPropertySet(Me.chkPropInt(PropName, oUserPropertySet)).Value = value
@@ -446,6 +497,13 @@ Public Class myPlotter
             oUserPropertySet.Add(value, PropName)
         End If
     End Sub
+    ''' <summary>
+    ''' checks if a iProperty exists
+    ''' </summary>
+    ''' <param name="PropName">name of the iProperty</param>
+    ''' <param name="oUserPropertySet"></param>
+    ''' <returns>true or false</returns>
+    ''' <remarks></remarks>
     Private Function chkProp(ByVal PropName As String, ByVal oUserPropertySet As PropertySet) As Boolean
         For i As Integer = 1 To oUserPropertySet.Count
             If oUserPropertySet.Item(i).Name = PropName Then Return True
