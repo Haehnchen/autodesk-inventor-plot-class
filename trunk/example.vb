@@ -1,5 +1,6 @@
 '$Id$
-Dim beispiel As New myPlotter(Inventor.Document.ActiveDocument)
+
+Dim beispiel As New InventorPlotClass(Inventor.Document.ActiveDocument)
 beispiel.RotatePlot.A0 = True
 beispiel.AllColorsAsBlack = True
 beispiel.NumberOfCopies = 2
